@@ -53,7 +53,7 @@ bookmark (){
 
 # Show a list of the bookmarks
 bookmarksshow (){
-  awk '{ printf "%-40s%-40s%s\n",$1,$2,$3}' FS=\| "$bookmarks_file"
+  awk '{ printf "%-40s %-40s\n",$1,$2}' FS=\| "$bookmarks_file"
 }
 
 go(){
