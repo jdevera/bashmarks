@@ -19,49 +19,55 @@
 # Tab completion works, to go to the shoobie bookmark:
 #   go sho[tab]
 # 
-# Your bookmarks are stored in the ~/.bookmarks file
+# Your bookmarks are stored in the file specified in the $BASHMARKS_FILE
+# environment variable (Default: ~/.bookmarks)
 
-bookmarks_file=~/.bookmarks
+bookmarks_file(){
+    local bookmarks_file=${BASHMARKS_FILE:-~/.bookmarks}
 
-# Create bookmarks_file it if it doesn't exist
-if [[ ! -f $bookmarks_file ]]; then
-  touch $bookmarks_file
-fi
+    # Create bookmarks_file if it doesn't exist
+    [[ -f $bookmarks_file ]] || touch "$bookmarks_file"
+    echo "$bookmarks_file"
+}
 
 bookmark (){
-  bookmark_name=$1
+  local bookmark_name="$1"
+  local bookmarks_file=$(bookmarks_file)
 
   if [[ -z $bookmark_name ]]; then
     echo 'Invalid name, please provide a name for your bookmark. For example:'
     echo '  bookmark foo'
+    return 1
   else
-    bookmark="`pwd`|$bookmark_name" # Store the bookmark as folder|name
+    local bookmark="$(pwd)|$bookmark_name" # Store the bookmark as folder|name
 
-    if [[ -z `grep "$bookmark" $bookmarks_file` ]]; then
-      echo $bookmark >> $bookmarks_file
-      echo "Bookmark '$bookmark_name' saved"
-    else
+    if grep -q "$bookmark" "$bookmarks_file"; then
       echo "Bookmark already existed"
+      return 1
+    else
+      echo "$bookmark" >> "$bookmarks_file"
+      echo "Bookmark '$bookmark_name' saved"
     fi
   fi
 } 
 
 # Show a list of the bookmarks
 bookmarksshow (){
-  cat ~/.bookmarks | awk '{ printf "%-40s%-40s%s\n",$1,$2,$3}' FS=\|
+  awk '{ printf "%-40s%-40s%s\n",$1,$2,$3}' FS=\| "$bookmarks_file"
 }
 
 go(){
-  bookmark_name=$1
+  local bookmark_name="$1"
 
-  bookmark=`grep "|$bookmark_name$" "$bookmarks_file"`
+  local bookmark=$( grep "|$bookmark_name$" "$bookmarks_file" )
 
   if [[ -z $bookmark ]]; then
     echo 'Invalid name, please provide a valid bookmark name. For example:'
     echo '  go foo'
     echo
-    echo 'To bookmark a folder, go to the folder then do this (naming the bookmark 'foo'):'
+    echo "To bookmark a folder, go to the folder then do this (naming the bookmark 'foo'):"
     echo '  bookmark foo'
+    return 1
   else
     dir=$(eval "echo $(echo "$bookmark" | cut -d\| -f1)")
     cd "$dir" 
@@ -70,7 +76,7 @@ go(){
 
 _go_complete(){
   # Get a list of bookmark names, then grep for what was entered to narrow the list
-  cat $bookmarks_file | cut -d\| -f2 | grep "$2.*"
+  cat "$bookmarks_file" | cut -d\| -f2 | grep "$2.*"
 }
 
 complete -C _go_complete -o default go 

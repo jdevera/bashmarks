@@ -17,3 +17,6 @@ To see a list of the bookmarks:
 
 Tab completion works, to go to the shoobie folder:
   go sho[tab]
+
+Bookmarks are stored in a file called .bookmarks in the user's home unless a
+different full path is set in the BASHMARKS_FILE environment variable.
