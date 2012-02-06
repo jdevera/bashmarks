@@ -63,7 +63,7 @@ go(){
     echo 'To bookmark a folder, go to the folder then do this (naming the bookmark 'foo'):'
     echo '  bookmark foo'
   else
-    dir=`echo "$bookmark" | cut -d\| -f1`
+    dir=$(eval "echo $(echo "$bookmark" | cut -d\| -f1)")
     cd "$dir" 
   fi
 }
