@@ -22,7 +22,7 @@
 # Your bookmarks are stored in the file specified in the $BASHMARKS_FILE
 # environment variable (Default: ~/.bookmarks)
 
-bookmarks_file(){
+__bm_bookmarks_file(){
     local bookmarks_file=${BASHMARKS_FILE:-~/.bookmarks}
 
     # Create bookmarks_file if it doesn't exist
@@ -30,9 +30,20 @@ bookmarks_file(){
     echo "$bookmarks_file"
 }
 
+__bm_show()
+{
+    local bookmarks_file=$(__bm_bookmarks_file)
+    while read line
+    do
+        bookmark=$(eval "echo \"$line\"")
+        echo "$bookmark" | awk '{ printf "%-10s %-40s\n",$2,$1}' FS=\|
+    done < "$bookmarks_file"
+
+}
+
 bookmark (){
   local bookmark_name="$1"
-  local bookmarks_file=$(bookmarks_file)
+  local bookmarks_file=$(__bm_bookmarks_file)
 
   if [[ -z $bookmark_name ]]; then
     echo 'Invalid name, please provide a name for your bookmark. For example:'
@@ -51,13 +62,12 @@ bookmark (){
   fi
 } 
 
-# Show a list of the bookmarks
-bookmarksshow (){
-  awk '{ printf "%-40s %-40s\n",$1,$2}' FS=\| "$bookmarks_file"
-}
-
 go(){
   local bookmark_name="$1"
+  local bookmarks_file=$(__bm_bookmarks_file)
+
+  [[ $bookmark_name == '?'  ]] && __bm_show && return 0;
+  [[ $bookmark_name == '-e' ]] && { ${EDITOR:-vi} "$bookmarks_file" ; return 0; }
 
   local bookmark=$( grep "|$bookmark_name$" "$bookmarks_file" )
 
@@ -74,9 +84,10 @@ go(){
   fi
 }
 
-_go_complete(){
+__complete_bashmarks(){
   # Get a list of bookmark names, then grep for what was entered to narrow the list
+  local bookmarks_file=$(__bm_bookmarks_file)
   cat "$bookmarks_file" | cut -d\| -f2 | grep "^$2.*"
 }
 
-complete -C _go_complete -o default go 
+complete -C __complete_bashmarks -o default go 
