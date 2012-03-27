@@ -11,13 +11,13 @@
 # The bookmark will be named "foo"
 #
 # When you want to get back to that folder use:
-#   go foo
+#   cdd foo
 #
 # To see a list of bookmarks:
-#   bookmarksshow
+#   cdd ?
 # 
 # Tab completion works, to go to the shoobie bookmark:
-#   go sho[tab]
+#   cdd sho[tab]
 # 
 # Your bookmarks are stored in the file specified in the $BASHMARKS_FILE
 # environment variable (Default: ~/.bookmarks)
@@ -42,27 +42,27 @@ __bm_show()
 }
 
 bookmark (){
-  local bookmark_name="$1"
-  local bookmarks_file=$(__bm_bookmarks_file)
+    local bookmark_name="$1"
+    local bookmarks_file=$(__bm_bookmarks_file)
 
-  if [[ -z $bookmark_name ]]; then
-    echo 'Invalid name, please provide a name for your bookmark. For example:'
-    echo '  bookmark foo'
-    return 1
-  else
-    local bookmark="$(pwd)|$bookmark_name" # Store the bookmark as folder|name
-
-    if grep -q "$bookmark" "$bookmarks_file"; then
-      echo "Bookmark already existed"
-      return 1
+    if [[ -z $bookmark_name ]] || [[ $bookmark_name = '?' ]]; then
+        echo 'Invalid name, please provide a name for your bookmark. For example:'
+        echo '    bookmark foo'
+        return 1
     else
-      echo "$bookmark" >> "$bookmarks_file"
-      echo "Bookmark '$bookmark_name' saved"
+        local bookmark="$(pwd)|$bookmark_name" # Store the bookmark as folder|name
+
+        if grep -q "$bookmark" "$bookmarks_file"; then
+            echo "Bookmark already existed"
+            return 1
+        else
+            echo "$bookmark" >> "$bookmarks_file"
+            echo "Bookmark '$bookmark_name' saved"
+        fi
     fi
-  fi
 } 
 
-go(){
+cdd(){
   local bookmark_name="$1"
   local bookmarks_file=$(__bm_bookmarks_file)
 
@@ -73,7 +73,7 @@ go(){
 
   if [[ -z $bookmark ]]; then
     echo 'Invalid name, please provide a valid bookmark name. For example:'
-    echo '  go foo'
+    echo '  cdd foo'
     echo
     echo "To bookmark a folder, go to the folder then do this (naming the bookmark 'foo'):"
     echo '  bookmark foo'
@@ -90,4 +90,4 @@ __complete_bashmarks(){
   cat "$bookmarks_file" | cut -d\| -f2 | grep "^$2.*"
 }
 
-complete -C __complete_bashmarks -o default go 
+complete -C __complete_bashmarks -o default cdd
