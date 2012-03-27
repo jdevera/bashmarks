@@ -20,10 +20,10 @@
 #   cdd sho[tab]
 # 
 # Your bookmarks are stored in the file specified in the $BASHMARKS_FILE
-# environment variable (Default: ~/.bookmarks)
+# environment variable (Default: ~/.bashmarks)
 
 __bm_bookmarks_file(){
-    local bookmarks_file=${BASHMARKS_FILE:-~/.bookmarks}
+    local bookmarks_file=${BASHMARKS_FILE:-~/.bashmarks}
 
     # Create bookmarks_file if it doesn't exist
     [[ -f $bookmarks_file ]] || touch "$bookmarks_file"
