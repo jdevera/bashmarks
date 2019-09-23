@@ -18,9 +18,11 @@ To bookmark a folder, simply go to that folder, then bookmark it like so:
 The bookmark will be named "foo"
 
 When you want to get back to that folder use:
+
     cdd foo
 
 To see a list of the bookmarks:
+
     cdd ?
 
 Tab completion works, to go to the *shoobie* folder:
