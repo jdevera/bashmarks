@@ -31,6 +31,58 @@ __bm_bookmarks_file(){
     echo "$bookmarks_file"
 }
 
+__bm_check()
+{
+    local bookmarks_file
+    bookmarks_file=$(__bm_bookmarks_file)
+    local line_num=0
+    local errors=0
+    local -A seen_names
+
+    while read -r line; do
+        ((line_num++))
+
+        # Skip empty lines
+        [[ -z $line ]] && continue
+
+        # Check line format: should have exactly one |
+        local pipe_count
+        pipe_count=$(echo "$line" | tr -cd '|' | wc -c)
+        if [[ $pipe_count -ne 1 ]]; then
+            echo "Line $line_num: Invalid format (expected 'path|name'): $line"
+            ((errors++))
+            continue
+        fi
+
+        local name
+        name=$(echo "$line" | cut -d'|' -f2)
+
+        # Check name is not empty
+        if [[ -z $name ]]; then
+            echo "Line $line_num: Empty bookmark name: $line"
+            ((errors++))
+            continue
+        fi
+
+        # Check for duplicate names
+        if [[ -n ${seen_names[$name]+x} ]]; then
+            echo "Line $line_num: Duplicate bookmark name '$name' (first seen on line ${seen_names[$name]})"
+            ((errors++))
+        else
+            seen_names[$name]=$line_num
+        fi
+    done < "$bookmarks_file"
+
+    if [[ $errors -eq 0 ]]; then
+        echo "Bookmarks file OK ($(wc -l < "$bookmarks_file" | tr -d ' ') entries)"
+        return 0
+    else
+        echo
+        echo "Found $errors error(s)"
+        return 1
+    fi
+}
+
 __bm_show()
 {
     local bookmarks_file
@@ -56,8 +108,15 @@ bookmark (){
         local bookmark
         bookmark="$(pwd)|$bookmark_name" # Store the bookmark as folder|name
 
-        if grep -q "$bookmark" "$bookmarks_file"; then
-            echo "Bookmark already existed"
+        # Check for duplicate by name only
+        local existing
+        existing=$(grep "|$bookmark_name$" "$bookmarks_file")
+        if [[ -n $existing ]]; then
+            local existing_path
+            existing_path=$(echo "$existing" | cut -d'|' -f1)
+            existing_path=$(eval "echo \"$existing_path\"")
+            echo "Error: Bookmark '$bookmark_name' already exists:"
+            echo "  $existing_path"
             return 1
         else
             echo "$bookmark" >> "$bookmarks_file"
@@ -72,7 +131,8 @@ cdd(){
   bookmarks_file=$(__bm_bookmarks_file)
 
   [[ $bookmark_name == '?'  ]] && __bm_show && return 0;
-  [[ $bookmark_name == '-e' ]] && { ${EDITOR:-vi} "$bookmarks_file" ; return 0; }
+  [[ $bookmark_name == '-c' || $bookmark_name == '--check' ]] && { __bm_check; return $?; }
+  [[ $bookmark_name == '-e' || $bookmark_name == '--edit' ]] && { ${EDITOR:-vi} "$bookmarks_file" ; return 0; }
 
   local bookmark
   bookmark=$( grep "|$bookmark_name$" "$bookmarks_file" )
