@@ -1,4 +1,5 @@
-# Bashmarks is a simple set of bash functions that allows you to bookmark 
+#!/bin/bash
+# Bashmarks is a simple set of bash functions that allows you to bookmark
 # folders in the command-line.
 # 
 # To install, put bashmarks.sh somewhere such as ~/bin, then source it 
@@ -32,8 +33,9 @@ __bm_bookmarks_file(){
 
 __bm_show()
 {
-    local bookmarks_file=$(__bm_bookmarks_file)
-    while read line
+    local bookmarks_file
+    bookmarks_file=$(__bm_bookmarks_file)
+    while read -r line
     do
         bookmark=$(eval "echo \"$line\"")
         echo "$bookmark" | awk '{ printf "%-10s %-40s\n",$2,$1}' FS=\|
@@ -43,14 +45,16 @@ __bm_show()
 
 bookmark (){
     local bookmark_name="$1"
-    local bookmarks_file=$(__bm_bookmarks_file)
+    local bookmarks_file
+    bookmarks_file=$(__bm_bookmarks_file)
 
     if [[ -z $bookmark_name ]] || [[ $bookmark_name = '?' ]]; then
         echo 'Invalid name, please provide a name for your bookmark. For example:'
         echo '    bookmark foo'
         return 1
     else
-        local bookmark="$(pwd)|$bookmark_name" # Store the bookmark as folder|name
+        local bookmark
+        bookmark="$(pwd)|$bookmark_name" # Store the bookmark as folder|name
 
         if grep -q "$bookmark" "$bookmarks_file"; then
             echo "Bookmark already existed"
@@ -64,12 +68,14 @@ bookmark (){
 
 cdd(){
   local bookmark_name="$1"
-  local bookmarks_file=$(__bm_bookmarks_file)
+  local bookmarks_file
+  bookmarks_file=$(__bm_bookmarks_file)
 
   [[ $bookmark_name == '?'  ]] && __bm_show && return 0;
   [[ $bookmark_name == '-e' ]] && { ${EDITOR:-vi} "$bookmarks_file" ; return 0; }
 
-  local bookmark=$( grep "|$bookmark_name$" "$bookmarks_file" )
+  local bookmark
+  bookmark=$( grep "|$bookmark_name$" "$bookmarks_file" )
 
   if [[ -z $bookmark ]]; then
     echo 'Invalid name, please provide a valid bookmark name. For example:'
@@ -80,14 +86,15 @@ cdd(){
     return 1
   else
     dir=$(eval "echo $(echo "$bookmark" | cut -d\| -f1)")
-    cd "$dir" 
+    cd "$dir" || return
   fi
 }
 
 __complete_bashmarks(){
   # Get a list of bookmark names, then grep for what was entered to narrow the list
-  local bookmarks_file=$(__bm_bookmarks_file)
-  cat "$bookmarks_file" | cut -d\| -f2 | grep "^$2.*"
+  local bookmarks_file
+  bookmarks_file=$(__bm_bookmarks_file)
+  cut -d\| -f2 < "$bookmarks_file" | grep "^$2.*"
 }
 
 complete -C __complete_bashmarks -o default cdd
