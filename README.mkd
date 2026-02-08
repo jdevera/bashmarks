@@ -1,45 +1,100 @@
-# Bashmarks: Directory Bookmarks for Bash
+# Bashmarks
 
-Provides bookmarking ability for directories in bash.
+[![CI](https://img.shields.io/github/actions/workflow/status/jdevera/bashmarks/test.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/jdevera/bashmarks/actions/workflows/test.yml)
+![Bash](https://img.shields.io/badge/bash-%234EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
+[![AI Friendly](https://img.shields.io/badge/AI-Friendly-pink?style=for-the-badge)](https://github.com/mefengl/made-by-ai)
+
+**Stop `cd`-ing the hard way.**
+
+Bashmarks lets you bookmark directories and teleport back to them instantly.
+No more typing `cd ~/projects/that-thing/with-the-name/i-can-never/remember`.
 
 ## Installation
 
-To install, put `bashmarks.sh` somewhere such as `~/bin`, then source it 
-in your `.bashrc` file (or other bash startup file):
+Drop `bashmarks.sh` somewhere (e.g. `~/bin`) and source it in your `.bashrc`:
 
-    source ~/bin/bashmarks.sh
-    
+```bash
+source ~/bin/bashmarks.sh
+```
+
+That's it. You now have superpowers.
+
 ## Usage
 
-To bookmark a folder, simply go to that folder, then bookmark it like so:
+### Save a bookmark
 
-    bookmark foo
+```bash
+cd ~/projects/world-domination
+bookmark evil
+```
 
-The bookmark will be named "foo"
+### Teleport back
 
-When you want to get back to that folder use:
+```bash
+cdd evil
+# You're there. Magic.
+```
 
-    cdd foo
+### See all your bookmarks
 
-To see a list of the bookmarks:
+```bash
+cdd ?
+```
 
-    cdd ?
+### Tab completion
 
-Tab completion works, to go to the *shoobie* folder:
+Because life is too short to type full words:
 
-    cdd sho<TAB>
+```bash
+cdd evi<TAB>  # completes to "evil"
+```
 
-Bookmarks are stored in a file called `.bookmarks` in the user's home unless a
-different full path is set in the `BASHMARKS_FILE` environment variable.
+### Health check
+
+```bash
+cdd --check
+# Bookmarks OK (42 entries)
+```
+
+### Edit your bookmarks file
+
+```bash
+cdd --edit
+# Opens in $EDITOR (defaults to vi)
+```
+
+## Include files
+
+Got bookmarks scattered across machines or projects? Pull them all together
+with `#include` directives in your bookmarks file:
+
+```
+#include ~/work/bookmarks
+#include ~/personal/bookmarks
+```
+
+All included bookmarks show up in listings, tab completion, and navigation.
+Duplicates are caught, self-includes are ignored, and missing files don't
+cause drama.
+
+## Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `BASHMARKS_FILE` | `~/.bashmarks` | Path to your bookmarks file |
 
 ## Development
 
-After cloning, initialise the test framework submodules and install the git hooks:
+After cloning, set up the test framework and git hooks:
 
-    git submodule update --init --recursive
-    pre-commit install
+```bash
+git submodule update --init --recursive
+pre-commit install
+```
 
 Shellcheck, shfmt, and the bats test suite all run automatically on every
-commit via pre-commit hooks. To run them manually:
+commit. To run them manually:
 
-    pre-commit run --all-files
+```bash
+pre-commit run --all-files
+```
