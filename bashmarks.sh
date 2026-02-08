@@ -24,7 +24,7 @@
 # environment variable (Default: ~/.bashmarks)
 
 __bm_bookmarks_file() {
-    local bookmarks_file=${BASHMARKS_FILE:-~/.bashmarks}
+    local bookmarks_file=${BASHMARKS_FILE:-"$HOME/.bashmarks"}
 
     # Create bookmarks_file if it doesn't exist
     [[ -f $bookmarks_file ]] || touch "$bookmarks_file"
