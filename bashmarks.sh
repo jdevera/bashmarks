@@ -31,65 +31,128 @@ __bm_bookmarks_file() {
     echo "$bookmarks_file"
 }
 
+__bm_resolve_includes() {
+    local bookmarks_file
+    bookmarks_file=$(__bm_bookmarks_file)
+    local resolved_main
+    resolved_main=$(cd -P "$(dirname "$bookmarks_file")" && echo "$(pwd)/$(basename "$bookmarks_file")")
+
+    grep '^#include ' "$bookmarks_file" | while read -r line; do
+        local path="${line#\#include }"
+        # Expand ~ and variables
+        path=$(eval echo "$path" 2>/dev/null) || continue
+        # Skip empty paths, missing files, and self-includes
+        [[ -n $path ]] || continue
+        [[ -f $path ]] || continue
+        local resolved_path
+        resolved_path=$(cd -P "$(dirname "$path")" && echo "$(pwd)/$(basename "$path")")
+        [[ $resolved_path != "$resolved_main" ]] || continue
+
+        echo "$path"
+    done
+}
+
+__bm_all_bookmarks() {
+    local bookmarks_file
+    bookmarks_file=$(__bm_bookmarks_file)
+
+    # Output bookmark lines from the main file (skip comments and blanks)
+    grep -v '^#\|^$' "$bookmarks_file" || true
+
+    # Output bookmark lines from each included file
+    local inc_file
+    while read -r inc_file; do
+        grep -v '^#\|^$' "$inc_file" || true
+    done < <(__bm_resolve_includes)
+}
+
 __bm_check() {
     local bookmarks_file
     bookmarks_file=$(__bm_bookmarks_file)
-    local line_num=0
     local errors=0
+    local total_entries=0
     local -A seen_names
 
+    # Validate a single bookmarks file. Updates seen_names, errors, and total_entries.
+    # Usage: __bm_check_file <filepath> <label>
+    __bm_check_file() {
+        local file="$1"
+        local label="$2"
+
+        while IFS=: read -r line_num line; do
+            # Check line format: should have exactly one |
+            local pipe_count
+            pipe_count=$(echo "$line" | tr -cd '|' | wc -c)
+            if [[ $pipe_count -ne 1 ]]; then
+                echo "$label:$line_num: Invalid format (expected 'path|name'): $line"
+                ((errors++))
+                continue
+            fi
+
+            local name
+            name=$(echo "$line" | cut -d'|' -f2)
+
+            # Check name is not empty
+            if [[ -z $name ]]; then
+                echo "$label:$line_num: Empty bookmark name: $line"
+                ((errors++))
+                continue
+            fi
+
+            ((total_entries++))
+
+            # Check for duplicate names across all files
+            if [[ -n ${seen_names[$name]+x} ]]; then
+                echo "$label:$line_num: Duplicate bookmark name '$name' (first seen at ${seen_names[$name]})"
+                ((errors++))
+            else
+                seen_names[$name]="$label:$line_num"
+            fi
+        done < <(grep -n -v '^#\|^$' "$file" || true)
+    }
+
+    # Validate main bookmarks file
+    __bm_check_file "$bookmarks_file" "$bookmarks_file"
+
+    # Check #include directives
+    local line_num=0
     while read -r line; do
         ((line_num++))
+        [[ $line == '#include '* ]] || continue
 
-        # Skip empty lines
-        [[ -z $line ]] && continue
+        local path="${line#\#include }"
+        path=$(eval echo "$path" 2>/dev/null) || continue
 
-        # Check line format: should have exactly one |
-        local pipe_count
-        pipe_count=$(echo "$line" | tr -cd '|' | wc -c)
-        if [[ $pipe_count -ne 1 ]]; then
-            echo "Line $line_num: Invalid format (expected 'path|name'): $line"
-            ((errors++))
+        if [[ -z $path ]]; then
             continue
         fi
 
-        local name
-        name=$(echo "$line" | cut -d'|' -f2)
-
-        # Check name is not empty
-        if [[ -z $name ]]; then
-            echo "Line $line_num: Empty bookmark name: $line"
-            ((errors++))
+        if [[ ! -f $path ]]; then
+            echo "$bookmarks_file:$line_num: Warning: included file not found: $path"
             continue
         fi
 
-        # Check for duplicate names
-        if [[ -n ${seen_names[$name]+x} ]]; then
-            echo "Line $line_num: Duplicate bookmark name '$name' (first seen on line ${seen_names[$name]})"
-            ((errors++))
-        else
-            seen_names[$name]=$line_num
-        fi
+        # Validate included file
+        __bm_check_file "$path" "$path"
     done <"$bookmarks_file"
 
+    unset -f __bm_check_file
+
     if [[ $errors -eq 0 ]]; then
-        echo "Bookmarks file OK ($(wc -l <"$bookmarks_file" | tr -d ' ') entries)"
+        echo "Bookmarks OK ($total_entries entries)"
         return 0
     else
         echo
-        echo "Found $errors error(s)"
+        echo "Found $errors error(s) ($total_entries entries)"
         return 1
     fi
 }
 
 __bm_show() {
-    local bookmarks_file
-    bookmarks_file=$(__bm_bookmarks_file)
     while read -r line; do
         bookmark=$(eval "echo \"$line\"")
         echo "$bookmark" | awk '{ printf "%-10s %-40s\n",$2,$1}' FS=\|
-    done <"$bookmarks_file"
-
+    done < <(__bm_all_bookmarks)
 }
 
 bookmark() {
@@ -105,9 +168,9 @@ bookmark() {
         local bookmark
         bookmark="$(pwd)|$bookmark_name" # Store the bookmark as folder|name
 
-        # Check for duplicate by name only
+        # Check for duplicate by name only (across all files)
         local existing
-        existing=$(grep "|$bookmark_name$" "$bookmarks_file")
+        existing=$(__bm_all_bookmarks | grep "|$bookmark_name$")
         if [[ -n $existing ]]; then
             local existing_path
             existing_path=$(echo "$existing" | cut -d'|' -f1)
@@ -138,7 +201,7 @@ cdd() {
     }
 
     local bookmark
-    bookmark=$(grep "|$bookmark_name$" "$bookmarks_file")
+    bookmark=$(__bm_all_bookmarks | grep "|$bookmark_name$" | head -1)
 
     if [[ -z $bookmark ]]; then
         echo 'Invalid name, please provide a valid bookmark name. For example:'
@@ -155,9 +218,7 @@ cdd() {
 
 __complete_bashmarks() {
     # Get a list of bookmark names, then grep for what was entered to narrow the list
-    local bookmarks_file
-    bookmarks_file=$(__bm_bookmarks_file)
-    cut -d\| -f2 <"$bookmarks_file" | grep "^$2.*"
+    __bm_all_bookmarks | cut -d\| -f2 | grep "^$2.*"
 }
 
 complete -C __complete_bashmarks -o default cdd
