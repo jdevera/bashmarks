@@ -35,9 +35,9 @@ __bm_resolve_includes() {
     local bookmarks_file
     bookmarks_file=$(__bm_bookmarks_file)
     local resolved_main
-    resolved_main=$(cd -P "$(dirname "$bookmarks_file")" && echo "$(pwd)/$(basename "$bookmarks_file")")
+    resolved_main=$(command realpath "$bookmarks_file")
 
-    grep '^#include ' "$bookmarks_file" | while read -r line; do
+    while read -r line; do
         local path="${line#\#include }"
         # Expand ~ and variables
         path=$(eval echo "$path" 2>/dev/null) || continue
@@ -47,11 +47,11 @@ __bm_resolve_includes() {
         [[ -n $path ]] || continue
         [[ -f $path ]] || continue
         local resolved_path
-        resolved_path=$(cd -P "$(dirname "$path")" && echo "$(pwd)/$(basename "$path")")
+        resolved_path=$(command realpath "$path")
         [[ $resolved_path != "$resolved_main" ]] || continue
 
         echo "$path"
-    done
+    done < <(grep '^#include ' "$bookmarks_file")
 }
 
 __bm_all_bookmarks() {
