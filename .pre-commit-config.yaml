@@ -1,0 +1,17 @@
+repos:
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+  - repo: local
+    hooks:
+      - id: bats
+        name: bats tests
+        entry: ./test/bats/bin/bats test/bashmarks.bats
+        language: script
+        always_run: true
+        pass_filenames: false

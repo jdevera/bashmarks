@@ -31,3 +31,15 @@ Tab completion works, to go to the *shoobie* folder:
 
 Bookmarks are stored in a file called `.bookmarks` in the user's home unless a
 different full path is set in the `BASHMARKS_FILE` environment variable.
+
+## Development
+
+After cloning, initialise the test framework submodules and install the git hooks:
+
+    git submodule update --init --recursive
+    pre-commit install
+
+Shellcheck, shfmt, and the bats test suite all run automatically on every
+commit via pre-commit hooks. To run them manually:
+
+    pre-commit run --all-files

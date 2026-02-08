@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck bashmarks.sh test/test_helper/common.bash test/bashmarks.bats
+      - name: Install shfmt
+        run: |
+          curl -sS https://webi.sh/shfmt | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: shfmt
+        run: shfmt -d bashmarks.sh test/test_helper/common.bash test/bashmarks.bats
+
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Run tests
+        run: ./test/bats/bin/bats test/*.bats
