@@ -159,6 +159,15 @@ EOF
     refute_output --partial "# Another comment"
 }
 
+@test "relative include paths resolve against the bookmarks file directory" {
+    local inc_file="${BATS_TEST_TMPDIR}/relative_inc"
+    echo "/tmp|rel_mark" >"$inc_file"
+    echo "#include relative_inc" >>"$BASHMARKS_FILE"
+    run cdd '?'
+    assert_success
+    assert_output --partial "rel_mark"
+}
+
 @test "missing included files are silently skipped during normal operations" {
     echo "#include /does/not/exist.txt" >>"$BASHMARKS_FILE"
     echo "/tmp|still_works" >>"$BASHMARKS_FILE"

@@ -41,6 +41,8 @@ __bm_resolve_includes() {
         local path="${line#\#include }"
         # Expand ~ and variables
         path=$(eval echo "$path" 2>/dev/null) || continue
+        # Resolve relative paths against the bookmarks file's directory
+        [[ $path == /* ]] || path="$(dirname "$bookmarks_file")/$path"
         # Skip empty paths, missing files, and self-includes
         [[ -n $path ]] || continue
         [[ -f $path ]] || continue
@@ -115,6 +117,8 @@ __bm_check() {
     __bm_check_file "$bookmarks_file" "$bookmarks_file"
 
     # Check #include directives
+    local bookmarks_dir
+    bookmarks_dir=$(dirname "$bookmarks_file")
     local line_num=0
     while read -r line; do
         ((line_num++))
@@ -122,6 +126,8 @@ __bm_check() {
 
         local path="${line#\#include }"
         path=$(eval echo "$path" 2>/dev/null) || continue
+        # Resolve relative paths against the bookmarks file's directory
+        [[ $path == /* ]] || path="$bookmarks_dir/$path"
 
         if [[ -z $path ]]; then
             continue
