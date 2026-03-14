@@ -2,6 +2,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/jdevera/bashmarks/test.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/jdevera/bashmarks/actions/workflows/test.yml)
 ![Bash](https://img.shields.io/badge/bash-%234EAA25?style=for-the-badge&logo=gnubash&logoColor=white)
+![Zsh](https://img.shields.io/badge/zsh-%23F15A24?style=for-the-badge&logo=zsh&logoColor=white)
 [![AI Friendly](https://img.shields.io/badge/AI-Friendly-pink?style=for-the-badge)](https://github.com/mefengl/made-by-ai)
 
 **Stop `cd`-ing the hard way.**
@@ -11,11 +12,14 @@ No more typing `cd ~/projects/that-thing/with-the-name/i-can-never/remember`.
 
 ## Installation
 
-Drop `bashmarks.sh` somewhere (e.g. `~/bin`) and source it in your `.bashrc`:
+Drop `bashmarks.sh` somewhere (e.g. `~/bin`) and source it in your `.bashrc` or
+`.zshrc`:
 
 ```bash
 source ~/bin/bashmarks.sh
 ```
+
+Works in both **bash** and **zsh**.
 
 That's it. You now have superpowers.
 
@@ -48,6 +52,9 @@ Because life is too short to type full words:
 ```bash
 cdd evi<TAB>  # completes to "evil"
 ```
+
+In **zsh**, completion shows bookmark names with their paths as descriptions.
+In **bash**, multiple matches display Docker-style with paths in parentheses.
 
 ### Health check
 
@@ -82,6 +89,9 @@ cause drama.
 | Variable | Default | Description |
 |---|---|---|
 | `BASHMARKS_FILE` | `~/.bashmarks` | Path to your bookmarks file |
+
+Relative paths in the bookmarks file are resolved against `$HOME`, so you can
+write `projects/foo|foo` instead of `/home/user/projects/foo|foo`.
 
 ## Development
 
