@@ -128,10 +128,13 @@ teardown() {
     echo "/var|comp_inc" >"$inc_file"
     echo "#include ${inc_file}" >>"$BASHMARKS_FILE"
     echo "/tmp|comp_main" >>"$BASHMARKS_FILE"
-    run __complete_bashmarks "" "comp_"
-    assert_success
-    assert_output --partial "comp_inc"
-    assert_output --partial "comp_main"
+    # Simulate bash programmable completion environment
+    COMP_WORDS=(cdd "comp_")
+    COMP_CWORD=1
+    __complete_bashmarks
+    local result="${COMPREPLY[*]}"
+    [[ $result == *"comp_inc"* ]]
+    [[ $result == *"comp_main"* ]]
 }
 
 @test "self-include is silently skipped" {

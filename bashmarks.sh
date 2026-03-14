@@ -1,9 +1,9 @@
 #!/bin/bash
-# Bashmarks is a simple set of bash functions that allows you to bookmark
-# folders in the command-line.
+# Bashmarks is a simple set of bash and zsh functions that allows you to
+# bookmark folders in the command-line.
 #
 # To install, put bashmarks.sh somewhere such as ~/bin, then source it
-# in your .bashrc file (or other bash startup file):
+# in your .bashrc or .zshrc file:
 #   source ~/bin/bashmarks.sh
 #
 # To bookmark a folder, simply go to that folder, then bookmark it like so:
@@ -31,6 +31,27 @@ __bm_bookmarks_file() {
     echo "$bookmarks_file"
 }
 
+# Resolve a bookmark path: expand variables, then treat relative paths as
+# relative to $HOME.
+__bm_resolve_path() {
+    local bm_path="$1"
+    bm_path=$(eval "echo \"$bm_path\"" 2>/dev/null) || return 1
+    [[ $bm_path == /* ]] || bm_path="$HOME/$bm_path"
+    echo "$bm_path"
+}
+
+# Shorten a path for display: replace $HOME prefix with ~
+__bm_display_path() {
+    local p="$1"
+    if [[ $p == "$HOME"/* ]]; then
+        echo "~${p#"$HOME"}"
+    elif [[ $p == "$HOME" ]]; then
+        echo "~"
+    else
+        echo "$p"
+    fi
+}
+
 __bm_resolve_includes() {
     local bookmarks_file
     bookmarks_file=$(__bm_bookmarks_file)
@@ -38,19 +59,19 @@ __bm_resolve_includes() {
     resolved_main=$(command realpath "$bookmarks_file")
 
     while read -r line; do
-        local path="${line#\#include }"
+        local inc_path="${line#\#include }"
         # Expand ~ and variables
-        path=$(eval echo "$path" 2>/dev/null) || continue
+        inc_path=$(eval echo "$inc_path" 2>/dev/null) || continue
         # Resolve relative paths against the bookmarks file's directory
-        [[ $path == /* ]] || path="$(dirname "$bookmarks_file")/$path"
+        [[ $inc_path == /* ]] || inc_path="$(dirname "$bookmarks_file")/$inc_path"
         # Skip empty paths, missing files, and self-includes
-        [[ -n $path ]] || continue
-        [[ -f $path ]] || continue
-        local resolved_path
-        resolved_path=$(command realpath "$path")
-        [[ $resolved_path != "$resolved_main" ]] || continue
+        [[ -n $inc_path ]] || continue
+        [[ -f $inc_path ]] || continue
+        local resolved_inc
+        resolved_inc=$(command realpath "$inc_path")
+        [[ $resolved_inc != "$resolved_main" ]] || continue
 
-        echo "$path"
+        echo "$inc_path"
     done < <(grep '^#include ' "$bookmarks_file")
 }
 
@@ -124,22 +145,22 @@ __bm_check() {
         ((line_num++))
         [[ $line == '#include '* ]] || continue
 
-        local path="${line#\#include }"
-        path=$(eval echo "$path" 2>/dev/null) || continue
+        local inc_path="${line#\#include }"
+        inc_path=$(eval echo "$inc_path" 2>/dev/null) || continue
         # Resolve relative paths against the bookmarks file's directory
-        [[ $path == /* ]] || path="$bookmarks_dir/$path"
+        [[ $inc_path == /* ]] || inc_path="$bookmarks_dir/$inc_path"
 
-        if [[ -z $path ]]; then
+        if [[ -z $inc_path ]]; then
             continue
         fi
 
-        if [[ ! -f $path ]]; then
-            echo "$bookmarks_file:$line_num: Warning: included file not found: $path"
+        if [[ ! -f $inc_path ]]; then
+            echo "$bookmarks_file:$line_num: Warning: included file not found: $inc_path"
             continue
         fi
 
         # Validate included file
-        __bm_check_file "$path" "$path"
+        __bm_check_file "$inc_path" "$inc_path"
     done <"$bookmarks_file"
 
     unset -f __bm_check_file
@@ -155,9 +176,9 @@ __bm_check() {
 }
 
 __bm_show() {
-    while read -r line; do
-        bookmark=$(eval "echo \"$line\"")
-        echo "$bookmark" | awk '{ printf "%-10s %-40s\n",$2,$1}' FS=\|
+    while IFS='|' read -r bm_path name; do
+        bm_path=$(__bm_resolve_path "$bm_path") || continue
+        printf "%-10s %-40s\n" "$name" "$(__bm_display_path "$bm_path")"
     done < <(__bm_all_bookmarks)
 }
 
@@ -180,7 +201,7 @@ bookmark() {
         if [[ -n $existing ]]; then
             local existing_path
             existing_path=$(echo "$existing" | cut -d'|' -f1)
-            existing_path=$(eval "echo \"$existing_path\"")
+            existing_path=$(__bm_resolve_path "$existing_path")
             echo "Error: Bookmark '$bookmark_name' already exists:"
             echo "  $existing_path"
             return 1
@@ -217,14 +238,55 @@ cdd() {
         echo '  bookmark foo'
         return 1
     else
-        dir=$(eval "echo $(echo "$bookmark" | cut -d\| -f1)")
+        local dir
+        dir=$(__bm_resolve_path "$(echo "$bookmark" | cut -d'|' -f1)")
         cd "$dir" || return
     fi
 }
 
-__complete_bashmarks() {
-    # Get a list of bookmark names, then grep for what was entered to narrow the list
-    __bm_all_bookmarks | cut -d\| -f2 | grep "^$2.*"
-}
+# --- Shell-specific tab completion ---
 
-complete -C __complete_bashmarks -o default cdd
+if type compdef >/dev/null 2>&1; then
+    # Zsh: use _describe for native name+description completion
+    _complete_bashmarks() {
+        local -a entries
+        while IFS='|' read -r bm_path name; do
+            bm_path=$(__bm_resolve_path "$bm_path") || continue
+            entries+=("${name}:$(__bm_display_path "$bm_path")")
+        done < <(__bm_all_bookmarks)
+        _describe 'bookmark' entries
+    }
+    compdef _complete_bashmarks cdd
+
+elif type complete >/dev/null 2>&1; then
+    # Bash: Docker-style completion with path shown in parentheses
+    __complete_bashmarks() {
+        local cur="${COMP_WORDS[COMP_CWORD]}"
+        local -a names paths
+
+        while IFS='|' read -r bm_path name; do
+            [[ $name == "$cur"* ]] || continue
+            bm_path=$(__bm_resolve_path "$bm_path") || continue
+            names+=("$name")
+            paths+=("$bm_path")
+        done < <(__bm_all_bookmarks)
+
+        if [[ ${#names[@]} -eq 0 ]]; then
+            return
+        elif [[ ${#names[@]} -eq 1 ]]; then
+            COMPREPLY=("${names[0]}")
+        else
+            # Multiple matches: show name + path description
+            local max_len=0
+            for n in "${names[@]}"; do
+                ((${#n} > max_len)) && max_len=${#n}
+            done
+            COMPREPLY=()
+            for i in "${!names[@]}"; do
+                printf -v entry "%-${max_len}s  (%s)" "${names[$i]}" "$(__bm_display_path "${paths[$i]}")"
+                COMPREPLY+=("$entry")
+            done
+        fi
+    }
+    complete -F __complete_bashmarks -o default cdd
+fi
